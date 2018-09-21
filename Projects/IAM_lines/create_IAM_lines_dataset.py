@@ -13,8 +13,8 @@ def read_char_list(char_list_file_path, log_file_indicator):
     try:
         char_file=open(char_list_file_path)
     except IOError:
-        print(char_list_file_path, 'does not exist')
-        log_file_indicator.write('\n Exception: '+str(char_list_file_path)+'\n')
+        print('No existe el fichero: ',char_list_file_path)
+        log_file_indicator.write('\n Excepcion: No existe el fichero: '+str(char_list_file_path)+'\n')
         log_file_indicator.close()
         sys.exit([1])
     else:
@@ -27,7 +27,7 @@ def extract_file_list(file_path, char_list_file_path, log_file_indicator):
     try:
         img_list_file=open(file_path)
     except IOError:
-        print(file_path, 'does not exist.')
+        print('No existe el fichero: ',file_path)
     else:
         char_list=read_char_list(char_list_file_path,log_file_indicator)
         log_file_indicator.write(str(len(char_list))+' chars considerated from this database: \n')
@@ -62,22 +62,46 @@ def extract_file_list(file_path, char_list_file_path, log_file_indicator):
             else:
                 n_err_tr+=1 
         log_file_indicator.write('#'*100+'\n')
-        log_file_indicator.write(str(n_ok) + ' sequences added. \n' +str(n_err_tr) + ' sequences deleted due to segmentation error.\n'+str(n_err_simb) + ' sequences deleted.\n')
+        log_file_indicator.write(str(n_ok) + ' secuencias añadidas. \n' +str(n_err_tr) + ' secuencias eliminadas por posible segmentación errónea.\n'+str(n_err_simb) + ' secuencias eliminadas por ser palabras sin dígitos ni letras (sólo símbolos).\n')
         return imgList, transcription_list, sequence_list, size_list, char_list
 
-def create_char_list_file(char_list_file_path, log_file_indicator):
-    import string
+def create_char_list_file(char_list_file_path, transcriptions_file_path, log_file_indicator):
     try:
-        char_file=open(char_list_file_path,'w')
+        char_file = open(char_list_file_path,'w')
     except IOError:
-        print('Path does not exist: ',char_list_file_path)
-        log_file_indicator.write('\n Exception, file does not exist: '+str(char_list_file_path)+'\n')
+        print('No existe la ruta al fichero: ',char_list_file_path)
+        log_file_indicator.write('\n Excepcion: No existe el fichero: '+str(char_list_file_path)+'\n')
         log_file_indicator.close()
         sys.exit([1])
     else:
-        for char in string.digits+string.ascii_lowercase+string.ascii_uppercase+'|':
-            char_file.write(char+'\n')
-        char_file.close()
+        try:
+            transcriptions_file=open(transcriptions_file_path,'r')
+        except IOError:
+            print('No existe el fichero: ', transcriptions_file)
+            log_file_indicator.write('\n Excepcion: No existe el fichero: '+str(transcriptions_file_path)+'\n')
+            log_file_indicator.close()
+            sys.exit([1])
+        else:
+            lines=transcriptions_file.readlines()
+            char_list=[]
+            char_set=set()
+            #Se extraen todos los caracteres de las lineas (separados por "-" y las palabras separadas por "|") y se anaden al conjunto aquellos que no estan todavia
+            for line in lines:
+                if line.startswith('#'):
+                   continue
+                if line.split()[1]=='ok':
+                    for word in ''.join(line.split()[8:]).split('|'):
+                        for char in word:
+                            char_list.append(char)
+                            char_set=char_set | set(char_list)
+            #Finalmente se anade el caracter espacio (|) que se elimino con el split()
+            char_set=char_set | set('|')   
+            #El conjunto resultante se pasa a lista y se almacena en un fichero llamado "charsWashington.txt" similara al chars.txt del IAM
+            charlist=list(char_set)
+            for char in charlist:
+                char_file.write(char+'\n')
+            char_file.close()   
+
         
 
 
@@ -98,6 +122,8 @@ def find_max_height(imgList, size_list):
             total64+=1
         if element[1]>180:
             total128+=1
+    print('Mayores que 180: ' + str(total128/len(size_list)))
+    print('Mayores que 128: ' + str(total64/len(size_list)))
     for ind, element in enumerate(size_list):
         element[0]=ceil(element[0]*128/element[1])
         if element[0]>maxWidth:
@@ -111,6 +137,8 @@ def find_max_height(imgList, size_list):
             total1024+=1
         if element[0]>6000:
             total2048+=1
+    print('Mayores que 4096: ' + str(total1024/len(size_list)))
+    print('Mayores que 6000: ' + str(total2048/len(size_list)))
     return maxHeight
 
 def select_imgList_by_height(imgList, transcriptionList, sequenceList, sizeList, maxHeight, DataBasePath, log_file_indicator):
