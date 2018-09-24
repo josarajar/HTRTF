@@ -27,6 +27,7 @@ def train(step, network, num_epochs, batchSize, learning_rate, trainSet, imageHe
 
     if type(saver) == list:
         saver=saver[0]
+
         
     with tf.Session(graph=graph) as sess:
              
